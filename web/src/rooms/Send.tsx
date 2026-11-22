@@ -9,7 +9,7 @@ type Row = { to: string; amount: string }
 
 export default function Send() {
   const st = useStore()
-  const [asset, setAsset] = useState('USDC')
+  const [asset, setAsset] = useState('SOL')
   const [mode, setMode] = useState<'single' | 'batch'>('single')
   const [to, setTo] = useState('')
   const [amt, setAmt] = useState('')

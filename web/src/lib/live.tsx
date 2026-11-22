@@ -74,6 +74,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         setBalances(session.balances())
         return sig
       } catch (e) {
+        logChain(label, e)
         throw new Error(friendly(e))
       } finally {
         setStatus('')
@@ -83,15 +84,32 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={live}>{children}</Ctx.Provider>
 }
 
+/** Full SDK error chain (codes + details) in the console, for support. */
+function logChain(label: string, e: unknown) {
+  const out: unknown[] = []
+  let c = e as { name?: string; code?: string; message?: string; details?: unknown; cause?: unknown } | undefined
+  for (let i = 0; c && i < 8; i++) { out.push({ code: c.code ?? c.name, message: c.message, details: c.details }); c = c.cause as typeof c }
+  console.error(`[pullhaus] ${label} failed`, JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)))
+}
+
 function friendly(e: unknown) {
-  const err = e as { message?: string; code?: string | number; details?: unknown; cause?: { message?: string } }
-  const raw = [err?.message ?? String(e), err?.code && String(err.code) !== err?.message ? `code ${err.code}` : '', err?.cause?.message ? `cause: ${err.cause.message}` : '']
-    .filter(Boolean).join(' · ')
-  const m = raw
-  if (/user rejected|rejected the request|user denied|cancelled by user|4001/i.test(m)) return `You declined the request in your wallet. (${raw})`
-  if (/insufficient|not enough|WALLET_INSUFFICIENT/i.test(m)) return 'Not enough balance for this (including fees).'
-  if (/WALLET_TOO_MANY_INPUTS/.test(m)) return 'Your balance is split across too many notes. Merge them first, then retry.'
-  return `Wallet error: ${raw}`
+  // Walk the whole SDK error chain: the useful code is usually the innermost one.
+  const codes: string[] = []
+  let deepest = ''
+  let c = e as { code?: string; name?: string; message?: string; cause?: unknown } | undefined
+  for (let i = 0; c && i < 8; i++) {
+    const code = String(c.code ?? c.name ?? '')
+    if (code) codes.push(code)
+    if (c.message) deepest = c.message
+    c = c.cause as typeof c
+  }
+  const all = codes.join(' ') + ' ' + deepest
+  if (/user rejected|rejected the request|user denied|cancelled by user|4001/i.test(all)) return 'You declined the request in your wallet.'
+  if (/WALLET_INSUFFICIENT_BALANCE/.test(all)) return "Not enough private balance in that asset. Check the asset you picked, or deposit more in Vault."
+  if (/insufficient (funds|lamports)|insufficient funds for rent/i.test(all)) return 'Not enough SOL in your wallet to cover this and the network fee.'
+  if (/WALLET_TOO_MANY_INPUTS/.test(all)) return 'Your balance is split across too many notes. Try a smaller amount, or merge first.'
+  if (/version|VersionedTransaction|unsupported transaction/i.test(all)) return "Your wallet can't sign the new Solana v1 transactions Privacy Rings use. Use the Phantom browser extension or Backpack."
+  return `Something went wrong: ${codes[codes.length - 1] ?? ''} ${deepest}`.trim()
 }
 
 export function useLive() {

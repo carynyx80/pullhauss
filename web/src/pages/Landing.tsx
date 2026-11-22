@@ -58,7 +58,7 @@ export default function Landing() {
           <Reveal className="section-head">
             <span className="kicker">The board</span>
             <h2 className="title">Eight rooms, <em>one haus</em></h2>
-            <p>Each room is a different way to use money privately. Three run live on Privacy Rings today; the rest are in demo while we build them.</p>
+            <p>Each room is a different way to use money privately. Three run live on Privacy Rings today; the rest are coming soon.</p>
           </Reveal>
           <Reveal delay={60}>
             <div className="board">
@@ -78,9 +78,9 @@ export default function Landing() {
                             </div>
                           </div>
                         </td>
-                        <td data-label="Status">{live ? <span className="pill g">Live on Rings</span> : <span className="pill">Demo</span>}</td>
+                        <td data-label="Status">{live ? <span className="pill g">Live on Rings</span> : <span className="pill a">Coming soon</span>}</td>
                         <td className="num" data-label="Fee">{live?.fee ?? '—'}</td>
-                        <td className="num" data-label="Proofs">{live?.proof ?? 'Simulated'}</td>
+                        <td className="num" data-label="Proofs">{live?.proof ?? '—'}</td>
                       </tr>
                     )
                   })}

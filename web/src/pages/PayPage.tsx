@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { SigLink, useProver, WalletPicker } from '../components/common'
-import { useStore } from '../lib/store'
 import { useLive } from '../lib/live'
 import { FEE_BPS, LIVE_SYMBOLS } from '../lib/config'
 import { short } from '../lib/util'
@@ -52,37 +51,13 @@ function LivePay({ owner, asset, fixed, memo }: { owner: string; asset: string; 
   )
 }
 
-function DemoPay({ id }: { id: string }) {
-  const st = useStore()
-  const link = st.links.find((l) => l.id === id)
-  const [amt, setAmt] = useState('')
-  const p = useProver()
-
-  if (!link) return (
-    <div className="wrap" style={{ padding: '80px 16px', textAlign: 'center' }}>
-      <h2>Link not found</h2>
-      <p className="muted">Demo links only open in the browser that created them. Live links work anywhere.</p>
-      <Link to="/app/links" className="btn">Go to Links</Link>
-    </div>
-  )
-
+function DemoPay(_props: { id: string }) {
   return (
-    <Shell>
-      <span className="tag">Private payment request · demo</span>
-      <h1 style={{ margin: 0, letterSpacing: '-0.03em' }}>{link.memo || 'Payment'}</h1>
-      <div className="mono" style={{ fontSize: 30 }}>{link.amount ?? 'Any amount'} <span className="yellow">{link.asset}</span></div>
-      <div style={{ alignSelf: 'center' }}><Qr text={location.href} /></div>
-      {!link.active ? <div className="err">This link is closed.</div> : (
-        <>
-          {link.amount === null && <input className="input big" placeholder="0.0" value={amt} onChange={(e) => setAmt(e.target.value)} />}
-          <button className="btn yellow block" disabled={p.busy} onClick={() => p.run(() => {
-            st.payLink(link.id, link.amount ?? parseFloat(amt))
-            return 'Paid (simulated).'
-          })}>Pay privately</button>
-        </>
-      )}
-      {p.view}
-    </Shell>
+    <div className="wrap" style={{ padding: '80px 16px', textAlign: 'center' }}>
+      <h2 className="headline" style={{ fontSize: 40 }}>Link not found</h2>
+      <p className="muted">This payment link isn't valid. Ask the sender for a new one.</p>
+      <Link to="/app/links" className="btn">Create a payment link</Link>
+    </div>
   )
 }
 

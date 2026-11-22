@@ -83,8 +83,8 @@ withdraw (out)      public    public    visible   public     private`}</code></p
 
           <h2 id="compliance">Compliance</h2>
           <p>The default ring has no auditor access: only you, and anyone you give your viewing key to, can decrypt your balance. Helius offers
-            <b> custom rings</b> with policy controls and auditor visibility for teams that need them (contact Helius). The Proofs room in pullhaus is a
-            demo of the user experience we want once that's available.</p>
+            <b> custom rings</b> with policy controls and auditor visibility for teams that need them (contact Helius). The Proofs room in pullhaus is
+            coming soon, once that's available.</p>
 
           <h2 id="program">pullhaus program</h2>
           <pre><code>{`announce(ephemeral_pubkey, stealth_address, view_tag, metadata)
@@ -96,7 +96,7 @@ create_launch(name, symbol, supply) · buy(lamports_in, min_out) · sell(...)`}<
 
           <h2 id="local">Running locally</h2>
           <pre><code>{`cd web && cp .env.example .env.local   # add VITE_HELIUS_API_KEY (mainnet default)
-npm install && npm run dev            # demo works without a key
+npm install && npm run dev
 
 cargo test -p pullhaus --lib          # program unit tests
 anchor build                          # needs Solana CLI`}</code></pre>

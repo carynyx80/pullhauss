@@ -27,12 +27,11 @@ const GITHUB_PATH = 'M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3
 
 /** Sticky header (logo, centred nav, actions) with the ink ticker tape under it. */
 export function Nav() {
-  const { connected, address } = useStore()
   const live = useLive()
   const [open, setOpen] = useState(false)
   const loc = useLocation()
   useEffect(() => setOpen(false), [loc.pathname])
-  const who = live.session ? live.session.owner : connected ? address : ''
+  const who = live.session?.owner ?? ''
   return (
     <div className="site-top">
       <header className="site-head">
@@ -46,8 +45,8 @@ export function Nav() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={GITHUB_PATH} /></svg>
             </a>
             {who ? (
-              <Link to="/app" className="btn sm ink mono" title={live.session ? `Privacy Rings · ${CLUSTER}` : 'Demo wallet'}>
-                <span className={live.session ? 'dot live' : 'dot'} />{short(who, 4, 4)}
+              <Link to="/app" className="btn sm ink mono" title={`Privacy Rings · ${CLUSTER}`}>
+                <span className="dot live" />{short(who, 4, 4)}
               </Link>
             ) : (
               <Link to="/app" className="btn sm primary">Enter the haus</Link>
@@ -241,6 +240,12 @@ export function useProver() {
   return { run, busy, view, reset: () => { setStage(-1); setError(''); setDone('') } }
 }
 
+/** Privacy Rings only build Solana v1 transactions; wallets advertise what they can sign. */
+function supportsV1(w: StdWallet) {
+  const f = w.features['solana:signTransaction'] as { supportedTransactionVersions?: readonly (string | number)[] } | undefined
+  return !!f?.supportedTransactionVersions?.some((v) => String(v) === '1')
+}
+
 const isMobile = () => typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 /** Reopens pullhaus inside a mobile wallet's in-app browser, where the wallet is injected. */
@@ -289,11 +294,17 @@ export function WalletPicker({ onDone }: { onDone?: () => void }) {
   }
   return (
     <div className="stack">
-      {wallets.map((w) => (
-        <button key={w.name} className="btn block" disabled={!!live.status} onClick={() => live.connect(w).then(onDone).catch(() => {})}>
-          <img src={w.icon} alt="" width={18} height={18} />{w.name}
-        </button>
-      ))}
+      {wallets.map((w) => {
+        const v1 = supportsV1(w)
+        return (
+          <div key={w.name}>
+            <button className="btn block" disabled={!!live.status} onClick={() => live.connect(w).then(onDone).catch(() => {})}>
+              <img src={w.icon} alt="" width={18} height={18} />{w.name}
+            </button>
+            {!v1 && <p className="hint" style={{ margin: '6px 4px 0', fontSize: 12 }}>{w.name} doesn't list support for Solana v1 transactions, which Privacy Rings use. If signing fails, try the Phantom browser extension or Backpack.</p>}
+          </div>
+        )
+      })}
       {live.status && <div className="ok">{live.status}…</div>}
       {live.error && <div className="err" style={{ wordBreak: 'break-word' }}>{live.error}</div>}
     </div>
@@ -301,35 +312,54 @@ export function WalletPicker({ onDone }: { onDone?: () => void }) {
 }
 
 export function Gate({ children }: { children: ReactNode }) {
-  const { connected, connect } = useStore()
   const live = useLive()
-  if (connected || live.session) return <>{children}</>
+  if (live.session) return <>{children}</>
   return (
     <div className="gate">
       <Mark size={64} title="pullhaus" />
-      <h2 style={{ letterSpacing: '-0.03em' }}>Enter the haus</h2>
-      <div className="grid2" style={{ maxWidth: 720, margin: '24px auto 0', textAlign: 'left' }}>
-        <div className="card stack">
-          <span className="tag"><span className="dot live" />Live · Privacy Rings {CLUSTER}</span>
-          <p className="muted" style={{ margin: 0, fontSize: 14 }}>Connect your Solana wallet. You sign once to unlock your private balance, and Helius Privacy Rings handles the proofs.</p>
-          {CLUSTER === 'mainnet' && <p className="err" style={{ margin: 0 }}>Mainnet: real funds. Privacy Rings are in beta and pullhaus is unaudited, so start small.</p>}
-          <WalletPicker />
-        </div>
-        <div className="card stack">
-          <span className="tag"><span className="dot" />Demo</span>
-          <p className="muted" style={{ margin: 0, fontSize: 14 }}>Try every room with a simulated wallet and test funds. Nothing touches a chain.</p>
-          <button className="btn yellow block" onClick={connect}>Use demo wallet</button>
-        </div>
+      <h2>Enter the haus</h2>
+      <p className="muted" style={{ maxWidth: 460, margin: '0 auto 22px' }}>
+        Connect your Solana wallet and sign once to unlock your private balance. Helius Privacy Rings handle the proofs.
+      </p>
+      <div className="gate-connect">
+        <WalletPicker />
+        {CLUSTER === 'mainnet' && <p className="note warn" style={{ margin: '14px 0 0' }}>Mainnet: real funds. Privacy Rings are in beta and pullhaus is unaudited, so start small.</p>}
       </div>
     </div>
   )
 }
 
-/** Shown in live mode on rooms that still run on simulated data. */
-export function SimNote() {
+/** "Connect wallet" in the sidebar opens this. Closes on connect, Escape or backdrop. */
+export function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const live = useLive()
-  if (!live.session) return null
-  return <p className="demo-note" style={{ marginBottom: 16 }}>Simulated: this room isn't on Privacy Rings yet. Your live balance isn't touched.</p>
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+  useEffect(() => { if (open && live.session) onClose() }, [open, live.session, onClose])
+  if (!open) return null
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="connect-title" onClick={(e) => e.stopPropagation()}>
+        <div className="row between" style={{ marginBottom: 6 }}>
+          <span className="kicker">Privacy Rings · {CLUSTER}</span>
+          <button className="side-toggle" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M4 4 L12 12 M12 4 L4 12" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <h3 id="connect-title">Connect wallet</h3>
+        <p className="hint" style={{ margin: '0 0 16px' }}>Pick your wallet, then sign once. Signing is free and creates your private keys in this browser.</p>
+        <WalletPicker />
+      </div>
+    </div>
+  )
+}
+
+/** Kept for compatibility; every room is live or marked coming soon. */
+export function SimNote() {
+  return null
 }
 
 export function SigLink({ sig }: { sig: string }) {

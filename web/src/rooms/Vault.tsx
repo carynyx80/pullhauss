@@ -73,7 +73,7 @@ export default function Vault() {
             <h3>How your balance is stored</h3>
             <p className="dim" style={{ fontSize: 13, margin: 0 }}>Privacy Rings keep your balance as encrypted UTXOs (notes), not as a normal token account. The Helius indexer only ever sees ciphertext. Your browser decrypts it with keys derived from the one message you signed.</p>
             {live.balances.length === 0 ? <div className="empty">No private balance yet. Deposit to start.</div> : live.balances.map((b) => (
-              <div className="list-item" key={b.asset}><span className="badge y">{b.asset}</span><span className="mono grow">{b.amount}</span><span className="dim mono" style={{ fontSize: 12 }}>{b.utxos} notes</span></div>
+              <div className="list-item" key={b.asset}><span className="badge y">{b.asset}</span><span className="mono grow">{b.amount}</span><span className="dim mono" style={{ fontSize: 12 }}>encrypted</span></div>
             ))}
           </div>
         ) : (

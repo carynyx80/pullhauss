@@ -509,3 +509,19 @@ table.t tr.mine td { background: var(--accent-soft); }
   .haus-buy { padding: 16px 18px; }
   .haus-buy b { font-size: 26px; }
 }
+
+/* ---------- connect wallet (sidebar + modal) ---------- */
+.side-foot { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.side-foot .side-wallet { margin-top: 0; border-top: 0; padding: 0 12px; }
+.side-connect { gap: 8px; }
+.collapsed .side-foot { display: flex; justify-content: center; }
+.collapsed .side-connect { width: 40px; height: 40px; padding: 0; }
+.collapsed .side-foot .side-wallet { padding: 0; }
+.gate-connect { max-width: 380px; margin: 0 auto; text-align: left; }
+.modal-scrim { position: fixed; inset: 0; z-index: 80; background: rgba(21, 19, 15, .32); display: grid; place-items: center; padding: 16px; animation: fadeIn .2s var(--ease); }
+.modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 22px; box-shadow: var(--shadow-feature); }
+.modal h3 { font: 400 32px/1.05 var(--serif); letter-spacing: -0.02em; margin: 4px 0 6px; color: var(--text); }
+.soon-card { display: grid; gap: 14px; max-width: 680px; }
+.soon-list { margin: 0; padding-left: 18px; color: var(--text-2); }
+.soon-list li { padding: 3px 0; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

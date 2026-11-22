@@ -256,7 +256,16 @@ export class RingsSession {
   private async feeInstructions(sym: string, fee: bigint): Promise<Instruction[]> {
     const a = this.asset(sym)
     const payer = createNoopSigner(this.owner)
-    if (a.mint === SOL_MINT) return [getTransferSolInstruction({ source: payer, destination: TREASURY_ADDR, amount: fee })]
+    if (a.mint === SOL_MINT) {
+      // A transfer can't leave an account below the rent-exempt minimum. If the treasury is
+      // ever that low, skip the fee rather than fail the customer's payment.
+      const [{ value: bal }, rentMin] = await Promise.all([
+        this.client.solanaRpc.getBalance(TREASURY_ADDR).send(),
+        this.client.solanaRpc.getMinimumBalanceForRentExemption(0n).send(),
+      ])
+      if (bal + fee < rentMin) return []
+      return [getTransferSolInstruction({ source: payer, destination: TREASURY_ADDR, amount: fee })]
+    }
     const [source] = await findAssociatedTokenPda({ owner: this.owner, mint: a.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS })
     const [destination] = await findAssociatedTokenPda({ owner: TREASURY_ADDR, mint: a.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS })
     return [
