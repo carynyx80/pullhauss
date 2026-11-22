@@ -19,8 +19,8 @@ export const explorerAddr = (a: string) => `https://orbmarkets.io/address/${a}${
  */
 export const HAUS = {
   symbol: '$HAUS',
-  ca: '', // e.g. 'Ab12...pump'
-  buyUrl: '', // e.g. 'https://pump.fun/coin/<CA>'
+  ca: '2NXX5CJDB5M6pAb9srwu58VskKLPnMdrF1TQbSdqpump',
+  buyUrl: 'https://pump.fun/coin/2NXX5CJDB5M6pAb9srwu58VskKLPnMdrF1TQbSdqpump',
 }
 
 const BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
