@@ -1,8 +1,76 @@
 {
   "redirects": [
-    { "source": "/:path*", "has": [{ "type": "host", "value": "pullhauss.vercel.app" }], "destination": "https://www.pullhaus.xyz/:path*", "permanent": true },
-    { "source": "/:path*", "has": [{ "type": "host", "value": "pullhauss-carynyx1.vercel.app" }], "destination": "https://www.pullhaus.xyz/:path*", "permanent": true },
-    { "source": "/:path*", "has": [{ "type": "host", "value": "pullhauss-git-main-carynyx1.vercel.app" }], "destination": "https://www.pullhaus.xyz/:path*", "permanent": true }
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss-carynyx1.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss-git-main-carynyx1.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss-carynyx1.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/:path+",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [
+        {
+          "type": "host",
+          "value": "pullhauss-git-main-carynyx1.vercel.app"
+        }
+      ],
+      "destination": "https://www.pullhaus.xyz/:path+",
+      "permanent": true
+    }
   ],
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
