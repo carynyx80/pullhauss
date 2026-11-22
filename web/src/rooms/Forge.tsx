@@ -50,7 +50,7 @@ export default function Forge() {
                   <span>raised {l.raised.toFixed(3)} SOL</span>
                   <span>{pct.toFixed(2)}% sold</span>
                 </div>
-                <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%`, background: 'var(--red)' }} /></div>
+                <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%`, background: 'var(--text)' }} /></div>
                 <div className="row" style={{ marginTop: 10 }}>
                   <input className="input mono" style={{ height: 32 }} placeholder="SOL" value={buy[l.id] ?? ''} onChange={(e) => setBuy({ ...buy, [l.id]: e.target.value })} />
                   <button className="btn sm" disabled={bp.busy} onClick={() => bp.run(() => {

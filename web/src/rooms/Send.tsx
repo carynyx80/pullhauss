@@ -95,7 +95,7 @@ export default function Send() {
             <div><span className="dim">program</span> Solana Privacy Program (ring1Ga…ANW)</div>
             <div><span className="dim">ring</span> default (permissionless, confidential)</div>
             <div><span className="dim">asset</span> <span className="green">encrypted</span> · <span className="dim">amount</span> <span className="green">encrypted</span> · <span className="dim">memo</span> <span className="green">encrypted</span></div>
-            <div><span className="dim">sender</span> <span className="yellow">visible</span> · <span className="dim">recipient</span> <span className="yellow">visible</span></div>
+            <div><span className="dim">sender</span> <span className="amber">visible</span> · <span className="dim">recipient</span> <span className="amber">visible</span></div>
             <div><span className="dim">proof</span> verified on Solana, no L2</div>
           </div>
           <p className="dim" style={{ fontSize: 13 }}>This is how the Privacy Rings default ring works, per Helius' docs. To hide the recipient too, pay a fresh one-time address from <b>Stealth</b>. Anonymous rings that hide both sides are a Helius custom-ring feature.</p>

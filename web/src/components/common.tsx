@@ -1,59 +1,147 @@
-import { ReactNode, useEffect, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import type { Wallet as StdWallet } from '@wallet-standard/base'
 import { useStore } from '../lib/store'
 import { useLive } from '../lib/live'
-import { CLUSTER, LIVE_AVAILABLE, TREASURY, explorerAddr, explorerTx } from '../lib/config'
+import { CLUSTER, HAUS_LIVE, LIVE_AVAILABLE, TREASURY, explorerAddr, explorerTx } from '../lib/config'
 import { short, sleep } from '../lib/util'
+import { Mark, Wordmark } from './Mark'
 
 export function Logo() {
   return (
-    <Link to="/" className="logo">
-      <span className="logo-mark"><i className="c" /><i className="s" /><i className="t" /></span>
-      pullhaus
+    <Link to="/" className="logo" aria-label="pullhaus home">
+      <Wordmark size={24} />
     </Link>
   )
 }
 
+const NAV = [
+  ['/about', 'About'],
+  ['/how-it-works', 'How it works'],
+  ['/app', 'App'],
+  ['/explorer', 'Explorer'],
+  ['/docs', 'Docs'],
+] as const
+
+const GITHUB_PATH = 'M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z'
+
+/** Sticky header (logo, centred nav, actions) with the ink ticker tape under it. */
 export function Nav() {
   const { connected, address } = useStore()
   const live = useLive()
+  const [open, setOpen] = useState(false)
+  const loc = useLocation()
+  useEffect(() => setOpen(false), [loc.pathname])
   const who = live.session ? live.session.owner : connected ? address : ''
   return (
-    <header className="nav">
-      <div className="wrap">
-        <Logo />
-        <nav className="nav-links">
-          <NavLink to="/app">App</NavLink>
-          <NavLink to="/explorer">Explorer</NavLink>
-          <NavLink to="/docs">Docs</NavLink>
-          <NavLink to="/docs#program">Developers</NavLink>
+    <div className="site-top">
+      <header className="site-head">
+        <div className="wrap">
+          <Logo />
+          <nav className="nav-links" aria-label="Main">
+            {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
+          </nav>
+          <div className="head-actions">
+            <a className="icon-link hide-sm" href="https://github.com/carynyx80/pullhauss" target="_blank" rel="noreferrer" aria-label="pullhaus on GitHub">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={GITHUB_PATH} /></svg>
+            </a>
+            {who ? (
+              <Link to="/app" className="btn sm ink mono" title={live.session ? `Privacy Rings · ${CLUSTER}` : 'Demo wallet'}>
+                <span className={live.session ? 'dot live' : 'dot'} />{short(who, 4, 4)}
+              </Link>
+            ) : (
+              <Link to="/app" className="btn sm primary">Enter the haus</Link>
+            )}
+            <button className="burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(!open)}><span /></button>
+          </div>
+        </div>
+        <nav className={`mobile-nav${open ? ' open' : ''}`} aria-label="Mobile">
+          {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
         </nav>
-        <div className="spacer" />
-        {who && (
-          <Link to="/app" className="btn sm mono" title={live.session ? `Privacy Rings · ${CLUSTER}` : 'Demo wallet'}>
-            <span className={live.session ? 'dot live' : 'dot'} />{short(who, 4, 4)}
-          </Link>
-        )}
-        <Link to="/app" className="btn sm primary">Enter the haus</Link>
-      </div>
-    </header>
+      </header>
+      <Ticker />
+    </div>
   )
+}
+
+type Tick = { sym: string; label: string; fig: string; dir?: 'up' | 'dn' }
+
+/** Ink ticker strip: live figures, infinite marquee, pauses on hover. */
+export function Ticker() {
+  const { prices, blocks } = useStore()
+  const tip = blocks[blocks.length - 1]?.height ?? 0
+  const px = (n: number | undefined) => (n === undefined ? '-' : n < 0.01 ? n.toExponential(2) : n.toFixed(2))
+  const items: Tick[] = [
+    { sym: 'SOL', label: 'Solana', fig: `$${px(prices.SOL)}`, dir: (prices.SOL ?? 0) >= 182.4 ? 'up' : 'dn' },
+    { sym: 'USDC', label: 'USD Coin', fig: `$${px(prices.USDC)}` },
+    { sym: 'JUP', label: 'Jupiter', fig: `$${px(prices.JUP)}`, dir: (prices.JUP ?? 0) >= 0.94 ? 'up' : 'dn' },
+    { sym: 'HAUS', label: 'Official token', fig: HAUS_LIVE ? 'live on pump.fun' : 'coming soon' },
+    { sym: 'RING', label: 'Privacy Rings', fig: 'beta · mainnet' },
+    { sym: 'FEE', label: 'pullhaus fee', fig: '0.25%' },
+    { sym: 'TXS', label: 'Recipients per transfer', fig: '15' },
+    { sym: 'NET', label: 'Cluster', fig: CLUSTER },
+    { sym: 'SLOT', label: 'Demo feed', fig: tip.toLocaleString() },
+  ]
+  const row = items.map((t, i) => (
+    <span className="tick" key={i}><b>{t.sym}</b>{t.label}<span className={t.dir ?? ''}>{t.fig}</span></span>
+  ))
+  return (
+    <div className="ticker-tape" aria-label="Market ticker">
+      <div className="ticker-track">{row}{row}{row}{row}</div>
+    </div>
+  )
+}
+
+type RevealProps = { children: ReactNode; delay?: number; className?: string }
+
+/** Fade-and-rise when scrolled into view. Stagger with `delay` (ms). */
+export function Reveal({ children, delay = 0, className = '' }: RevealProps) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setShown(true); return }
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) { setShown(true); io.disconnect() }
+    }, { rootMargin: '0px 0px -8% 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  const style = { '--d': `${delay}ms` } as React.CSSProperties
+  return <div ref={ref} className={`reveal${shown ? ' in' : ''} ${className}`.trim()} style={style}>{children}</div>
 }
 
 export function Footer() {
   return (
     <footer className="footer">
       <div className="wrap">
-        <span>
-          pullhaus · powered by Helius Solana Privacy Rings · company treasury{' '}
-          <a href={explorerAddr(TREASURY)} target="_blank" rel="noreferrer" className="mono" style={{ marginLeft: 0 }}>{short(TREASURY, 4, 4)}</a>
-        </span>
-        <span>
-          <Link to="/explorer">Explorer</Link>
-          <Link to="/docs">Docs</Link>
-          <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
-        </span>
+        <div className="foot-cols">
+          <div>
+            <Wordmark size={22} />
+            <p className="hint" style={{ maxWidth: 300, marginTop: 14 }}>Private money on Solana, powered by Helius Solana Privacy Rings.</p>
+          </div>
+          <div>
+            <h5>Product</h5>
+            <Link to="/app">App</Link><Link to="/how-it-works">How it works</Link><Link to="/explorer">Explorer</Link><Link to="/about">About</Link><Link to="/docs">Docs</Link>
+          </div>
+          <div>
+            <h5>Built on</h5>
+            <a href="https://www.helius.dev/docs/privacy" target="_blank" rel="noreferrer">Helius Privacy Rings</a>
+            <a href="https://solana.com" target="_blank" rel="noreferrer">Solana</a>
+            <a href="https://github.com/carynyx80/pullhauss" target="_blank" rel="noreferrer">GitHub</a>
+          </div>
+          <div>
+            <h5>Company</h5>
+            <a href={explorerAddr(TREASURY)} target="_blank" rel="noreferrer" className="mono">Treasury {short(TREASURY, 4, 4)}</a>
+            <Link to="/docs#fees">Fees</Link>
+            <Link to="/docs#security">Security</Link>
+          </div>
+        </div>
+        <div className="foot-word" aria-hidden="true">pullhaus</div>
+        <div className="foot-legal">
+          <span>Unaudited beta. Not financial advice. Privacy Rings are operated by Helius.</span>
+          <span>© 2026 pullhaus</span>
+        </div>
       </div>
     </footer>
   )
@@ -62,15 +150,16 @@ export function Footer() {
 /** Geometric glyph for each room. */
 export function Shape({ kind, size = 34 }: { kind: string; size?: number }) {
   const s = size
-  const R = 'var(--red)', Y = 'var(--yellow)', B = 'var(--blue)', I = 'var(--ink)'
+  // Ink tones only: room glyphs stay quiet; red is reserved for what's clickable.
+  const R = 'var(--text)', Y = 'var(--muted)', B = 'var(--line-3)', I = 'var(--text)'
   const shapes: Record<string, ReactNode> = {
-    vault: <><rect x="2" y="2" width="30" height="30" fill={Y} /><circle cx="17" cy="17" r="8" fill="var(--bg)" /></>,
+    vault: <><rect x="2" y="2" width="30" height="30" fill={Y} /><circle cx="17" cy="17" r="8" fill="var(--surface-3)" /></>,
     send: <><circle cx="12" cy="17" r="10" fill={R} /><polygon points="18,6 32,17 18,28" fill={I} /></>,
     swap: <><circle cx="12" cy="12" r="10" fill={B} /><rect x="14" y="14" width="18" height="18" fill={Y} /></>,
     forge: <><polygon points="17,2 32,32 2,32" fill={R} /><rect x="12" y="20" width="10" height="12" fill={I} /></>,
     links: <><circle cx="11" cy="17" r="8" fill="none" stroke={Y} strokeWidth="5" /><circle cx="23" cy="17" r="8" fill="none" stroke={I} strokeWidth="5" /></>,
     orders: <><rect x="2" y="20" width="8" height="12" fill={I} /><rect x="13" y="11" width="8" height="21" fill={B} /><rect x="24" y="2" width="8" height="30" fill={R} /></>,
-    stealth: <><circle cx="17" cy="17" r="15" fill={I} /><circle cx="22" cy="14" r="12" fill="var(--bg-2)" /></>,
+    stealth: <><circle cx="17" cy="17" r="15" fill={I} /><circle cx="22" cy="14" r="12" fill="var(--surface-3)" /></>,
     proofs: <><rect x="2" y="2" width="30" height="30" fill="none" stroke={B} strokeWidth="4" /><polyline points="9,17 15,23 26,10" fill="none" stroke={Y} strokeWidth="4" /></>,
     activity: <><rect x="2" y="8" width="30" height="4" fill={I} /><rect x="2" y="16" width="20" height="4" fill={R} /><rect x="2" y="24" width="26" height="4" fill={I} /></>,
   }
@@ -173,7 +262,7 @@ export function Gate({ children }: { children: ReactNode }) {
   if (connected || live.session) return <>{children}</>
   return (
     <div className="gate">
-      <Shape kind="vault" size={56} />
+      <Mark size={64} title="pullhaus" />
       <h2 style={{ letterSpacing: '-0.03em' }}>Enter the haus</h2>
       <div className="grid2" style={{ maxWidth: 720, margin: '24px auto 0', textAlign: 'left' }}>
         <div className="card stack">

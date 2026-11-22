@@ -20,7 +20,7 @@ export default function Proofs() {
           <h3>Proof of association</h3>
           <p className="dim" style={{ fontSize: 13, margin: 0 }}>A zero-knowledge proof that every unspent note you hold traces back to deposits in the chosen set. The verifier learns nothing else.</p>
           {ASSOCIATION_SETS.map((a) => (
-            <label key={a.id} className="card" style={{ cursor: 'pointer', padding: 14, borderColor: set === a.id ? 'var(--blue)' : undefined }}>
+            <label key={a.id} className="card" style={{ cursor: 'pointer', padding: 14, borderColor: set === a.id ? 'var(--accent)' : undefined }}>
               <div className="row"><input type="radio" checked={set === a.id} onChange={() => setSet(a.id)} /><b>{a.label}</b><span className="grow" /><span className="dim mono" style={{ fontSize: 12 }}>{a.size.toLocaleString()} deposits</span></div>
               <div className="dim" style={{ fontSize: 13, marginTop: 4 }}>{a.desc}</div>
             </label>

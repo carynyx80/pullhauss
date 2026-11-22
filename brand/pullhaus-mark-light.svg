@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <title>pullhaus</title>
+  <defs><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><ellipse cx="32" cy="19.5" rx="9.5" ry="7.5" fill="#000"/><circle cx="32" cy="45" r="5.6" fill="#000"/></mask></defs>
+  <path mask="url(#m)" fill="#f4f1ea" d="M32 3 C45 3 52 10 52 19.5 C52 24 50 27.5 47 30 L47 50 C47 56 43 61 37 61 L27 61 C21 61 17 56 17 50 L17 30 C14 27.5 12 24 12 19.5 C12 10 19 3 32 3 Z"/><circle cx="32" cy="45" r="4.2" fill="#e84125"/>
+</svg>

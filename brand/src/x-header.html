@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet" />
+<style>
+  /* X/Twitter header, 1500x500. Safe zones: avatar covers bottom-left (~x<300, y>300);
+     mobile crops ~60px top and bottom. Key content lives in x 320-1420, y 90-420. */
+  :root { --bg:#f4f1ea; --surface:#fffdf9; --line:#e2ddd2; --line2:#d4cec1; --text:#15130f; --text2:#48433b; --muted:#736c62; --accent:#e84125; }
+  * { box-sizing:border-box; margin:0; }
+  html, body { width:1500px; height:500px; overflow:hidden; background:var(--bg); }
+  body { position:relative; font-family:'Instrument Sans', sans-serif; color:var(--text2); }
+  .tape { position:absolute; left:0; right:0; top:0; height:40px; background:var(--text); display:flex; align-items:center; gap:0; overflow:hidden;
+          font:400 14px/1 'JetBrains Mono', monospace; color:rgba(244,241,234,.7); white-space:nowrap; }
+  .tape span { padding:0 20px; display:inline-flex; gap:9px; align-items:center; }
+  .tape span::after { content:''; width:3px; height:3px; border-radius:50%; background:rgba(244,241,234,.35); margin-left:20px; }
+  .tape b { color:#f4f1ea; font-weight:500; } .tape i { font-style:normal; color:#ff9a8f; } .tape em { font-style:normal; color:#7fd39b; }
+  .copy { position:absolute; left:320px; top:92px; width:820px; }
+  .chip { display:inline-flex; align-items:center; gap:11px; padding:9px 18px; border:1px solid var(--line2); border-radius:999px; background:var(--surface);
+          font-size:19px; color:var(--text2); }
+  .chip b { color:var(--text); font-weight:600; }
+  .chip .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 5px rgba(232,65,37,.14); }
+  h1 { font:400 92px/0.98 'Instrument Serif', serif; letter-spacing:-0.025em; color:var(--text); margin-top:26px; }
+  h1 em { display:block; font-style:italic; color:var(--accent); }
+  .mark { position:absolute; right:110px; top:108px; width:250px; height:250px; }
+  .rule { position:absolute; left:320px; right:80px; top:404px; border-top:1px solid var(--line2); padding-top:14px; display:flex; justify-content:space-between;
+          font-size:17px; color:var(--muted); }
+  .rule .url { font:500 16px 'JetBrains Mono', monospace; color:var(--text); }
+</style></head>
+<body>
+  <div class="tape">
+    <span><b>PULLHAUS</b>Private money on Solana</span>
+    <span><b>RING</b>Helius Privacy Rings<em>live · mainnet</em></span>
+    <span><b>BAL</b>Your balance<i>encrypted</i></span>
+    <span><b>AMT</b>Transfer amounts<i>encrypted</i></span>
+    <span><b>FEE</b>pullhaus<em>0.25%</em></span>
+    <span><b>TXS</b>Recipients per transfer<em>15</em></span>
+    <span><b>NET</b>Settled on<em>Solana L1</em></span>
+  </div>
+  <div class="copy">
+    <span class="chip"><span class="dot"></span>Powered by <b>Helius Privacy Rings</b></span>
+    <h1>Private money on Solana.<em>With the lights off.</em></h1>
+  </div>
+  <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+    <defs><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/><ellipse cx="32" cy="19.5" rx="9.5" ry="7.5" fill="#000"/><circle cx="32" cy="45" r="5.6" fill="#000"/></mask></defs>
+    <path mask="url(#m)" fill="#15130f" d="M32 3 C45 3 52 10 52 19.5 C52 24 50 27.5 47 30 L47 50 C47 56 43 61 37 61 L27 61 C21 61 17 56 17 50 L17 30 C14 27.5 12 24 12 19.5 C12 10 19 3 32 3 Z"/>
+    <circle cx="32" cy="45" r="4.2" fill="#e84125"/>
+  </svg>
+  <div class="rule">
+    <span>Encrypted balances · Private transfers · Payment links · Payroll</span>
+  </div>
+</body></html>

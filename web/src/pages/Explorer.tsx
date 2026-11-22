@@ -28,8 +28,10 @@ export default function Explorer() {
   return (
     <>
       <div className="wrap" style={{ paddingTop: 36, paddingBottom: 80 }}>
-        <span className="tag"><span className="pulse" />Ring explorer · {CLUSTER}</span>
-        <h1 style={{ fontSize: 44, letterSpacing: '-0.04em', margin: '10px 0 20px' }}>Public chain. Private amounts.</h1>
+        <span className="kicker">Ring explorer · {CLUSTER}</span>
+        <h1 className="headline" style={{ fontSize: 'clamp(36px, 4.6vw, 52px)', margin: '12px 0 28px' }}>
+          Public chain.<span className="l2">Private amounts.</span>
+        </h1>
         <div className="card" style={{ marginBottom: 20 }}>
           <h3>Privacy Rings on Solana</h3>
           <p className="dim" style={{ fontSize: 13, marginTop: 0 }}>Every pullhaus private transaction runs through these accounts. Open them on Orb to see real activity: amounts and assets show up as ciphertext.</p>
@@ -39,12 +41,12 @@ export default function Explorer() {
           {live.lastSig && <div className="list-item"><span className="grow">Your last transaction</span><a className="mono" href={explorerTx(live.lastSig)} target="_blank" rel="noreferrer">{short(live.lastSig, 6, 6)} ↗</a></div>}
         </div>
         <span className="demo-note" style={{ marginBottom: 14 }}>Below: simulated feed for the demo. Live data is on Orb via the links above.</span>
-        <div className="ticker" style={{ border: '1px solid var(--line)', margin: '14px 0 20px' }}>
-          <div><span className="tag">Slot (sim)</span><b>{tip.height.toLocaleString()}</b></div>
-          <div><span className="tag">Txs (window)</span><b>{txs.length}</b></div>
-          <div><span className="tag">Your demo txs</span><b className="yellow">{txs.filter((t) => t.mine).length}</b></div>
-          <div><span className="tag">Program</span><b style={{ fontSize: 16 }}>{short(RINGS_PROGRAM, 4, 4)}</b></div>
-          <div><span className="tag">Cluster</span><b>{CLUSTER}</b></div>
+        <div className="figures" style={{ margin: '14px 0 24px' }}>
+          <div className="figure"><span>Slot (sim)</span><b>{tip.height.toLocaleString()}</b></div>
+          <div className="figure"><span>Txs in window</span><b>{txs.length}</b></div>
+          <div className="figure"><span>Your demo txs</span><b className="yellow">{txs.filter((t) => t.mine).length}</b></div>
+          <div className="figure"><span>Program</span><b style={{ fontSize: 16 }}>{short(RINGS_PROGRAM, 4, 4)}</b></div>
+          <div className="figure"><span>Cluster</span><b>{CLUSTER}</b></div>
         </div>
         <input className="input mono" placeholder="Search the simulated feed: slot, hash, signature or type…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 20 }} />
 

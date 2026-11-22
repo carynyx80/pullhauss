@@ -1,5 +1,7 @@
 # pullhaus
 
+Live at **https://www.pullhaus.xyz** (pullhaus.xyz and the old pullhauss.vercel.app redirect there).
+
 A private money app on Solana, **powered by [Helius Solana Privacy Rings](https://www.helius.dev/docs/privacy)**.
 Privacy Rings provide encrypted balances, ZK proofs and on-chain verification. pullhaus adds the product on top:
 payment links, payroll, stealth addresses, hidden orders and anonymous-buyer launches.
