@@ -29,8 +29,8 @@ import {
   Wallet as ShieldedWallet,
 } from '@heliuslabs/spr'
 import { SignedTeePolicy } from '@heliuslabs/spr/client'
-import { ed25519DerivationMessage } from '@heliuslabs/spr/keypair'
-import { isWalletRegistered } from '@heliuslabs/spr/wallet'
+import { NullifierKey, ShieldedAddress, ShieldedPublicKey, ViewingKey } from '@heliuslabs/spr/keypair'
+import { isWalletRegistered, resolveRegisteredAddress } from '@heliuslabs/spr/wallet'
 import { getTransferSolInstruction } from '@solana-program/system'
 import {
   findAssociatedTokenPda,
@@ -67,6 +67,49 @@ export const LIVE_ASSETS: Record<string, { mint: Address; decimals: number }> = 
   },
 }
 const symbolFor = (mint: string) => Object.entries(LIVE_ASSETS).find(([, a]) => a.mint === mint)?.[0] ?? mint.slice(0, 4) + '…'
+
+/**
+ * Sign-in message. Plain UTF-8 so every wallet signs it: Phantom and others refuse
+ * the binary "solana offchain" envelope the SDK's own derivation uses.
+ */
+export const signInMessage = (owner: string) =>
+  `Sign in to pullhaus\n\nThis unlocks your private balance on Helius Privacy Rings. It is free and does not send a transaction.\n\nOnly sign this on www.pullhaus.xyz.\n\nWallet: ${owner}\nVersion: 1`
+
+const enc = new TextEncoder()
+async function hkdf(ikm: Uint8Array, info: string, bits: number) {
+  const key = await crypto.subtle.importKey('raw', ikm as BufferSource, 'HKDF', false, ['deriveBits'])
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(), info: enc.encode(info) }, key, bits))
+}
+
+/**
+ * Mirrors the SDK's roleExpansion (HKDF-SHA256, same labels and sizes), seeded by the
+ * wallet's 64-byte signature over the plain-text message. The signing key stays the
+ * wallet's own key, as the Privacy Rings registry requires. Ed25519 signatures are
+ * deterministic, so the same wallet always gets the same private address.
+ */
+async function keysFromSignature(walletPub: Uint8Array, sig: Uint8Array, proofs: SprClient['proofService']) {
+  const nf = await hkdf(sig, 'TSPP/nf_key/ed25519/v1', 248)
+  const vk = await hkdf(sig, 'TSPP/view_key/ed25519/x25519/v1', 256)
+  vk[0] &= 248
+  vk[31] = (vk[31] & 127) | 64
+  const viewing = ViewingKey.fromBytes(vk as never)
+  const nullifier = NullifierKey.fromSecret(nf as never)
+  nf.fill(0)
+  vk.fill(0)
+  const address = ShieldedAddress.fromPublicKeys(ShieldedPublicKey.fromEd25519(walletPub as never), nullifier.publicKey(), viewing.publicKey())
+  return LocalKeys.fromKeys({ address, viewingKeys: [viewing], nullifierKey: nullifier }, proofs)
+}
+
+async function verifyEd25519(pub: Uint8Array, msg: Uint8Array, sig: Uint8Array) {
+  try {
+    const key = await crypto.subtle.importKey('raw', pub as BufferSource, { name: 'Ed25519' }, false, ['verify'])
+    return await crypto.subtle.verify('Ed25519', key, sig as BufferSource, msg as BufferSource)
+  } catch {
+    return true // very old browsers without WebCrypto Ed25519: the registry check below still guards keys
+  }
+}
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i])
 
 export type LiveBalance = { asset: string; amount: number; utxos: number }
 export type LiveTx = { id: string; detail: string }
@@ -123,21 +166,38 @@ export class RingsSession {
     })
 
     onStatus('Sign once to unlock your private balance')
-    const message = ed25519DerivationMessage(account.publicKey as Uint8Array as never)
+    const message = new TextEncoder().encode(signInMessage(owner))
     const signFeature = wallet.features['solana:signMessage'] as {
       signMessage(...i: { account: WalletAccount; message: Uint8Array }[]): Promise<readonly { signature: Uint8Array }[]>
     }
     const [{ signature }] = await signFeature.signMessage({ account, message })
-    const keys = LocalKeys.fromDerivationSeed({ solanaPublicKey: owner, derivationSeed: signature }, client.proofService)
+    const walletPub = new Uint8Array(account.publicKey)
+    if (!(await verifyEd25519(walletPub, message, signature))) {
+      throw new Error('Your wallet returned a signature that does not match the sign-in message. Please try again.')
+    }
+    const keys = await keysFromSignature(walletPub, new Uint8Array(signature), client.proofService)
     const shielded = new ShieldedWallet({ identity: keys.address() })
     const treasuryRegistered = await isWalletRegistered({ rpc: client, owner: TREASURY_ADDR }).catch(() => false)
     const session = new RingsSession(client, wallet, account, owner, keys, shielded, treasuryRegistered)
 
     onStatus('Checking registration')
-    if (!(await isWalletRegistered({ rpc: client, owner }))) {
+    // Don't swallow lookup errors: guessing "not registered" on a network blip would try to re-register.
+    const existing = await resolveRegisteredAddress({ rpc: client, owner }).catch((e) => {
+      throw Object.assign(new Error("Couldn't reach Helius to check your registration. Please try again in a moment."), { cause: e })
+    })
+    if (!existing) {
       onStatus('Approve one-time registration of your shielded address')
-      const tx = await buildRegistrationTransaction({ client, owner, address: keys.address() })
+      const tx = await buildRegistrationTransaction({ client, owner, address: keys.address() }).catch((e) => {
+        const codes = JSON.stringify(e, Object.getOwnPropertyNames(e ?? {})) + String(e?.cause?.code ?? '')
+        if (/USER_RECORD_KEYS_MISMATCH/.test(codes)) {
+          throw new Error('This wallet is already registered on Privacy Rings with different keys (for example by another app). pullhaus will not overwrite it.')
+        }
+        throw e
+      })
       if (tx) await session.send(tx, false)
+    } else if (!sameBytes(existing.address.toBytes(), keys.address().toBytes())) {
+      // Never overwrite a registration: that could hide an existing private balance.
+      throw new Error('This wallet is already registered on Privacy Rings with different keys (for example by another app). pullhaus will not overwrite it.')
     }
     onStatus('Syncing private balance')
     await session.sync()
