@@ -8,6 +8,7 @@ import { HAUS_LIVE } from '../lib/config'
 const LIVE: Record<string, { fee: string; proof: string }> = {
   vault: { fee: '0.00%', proof: 'Helius' },
   send: { fee: '0.25%', proof: 'Helius' },
+  swap: { fee: '0.25%', proof: 'Helius + Jupiter' },
   links: { fee: '0.25%', proof: 'Helius' },
 }
 
@@ -58,7 +59,7 @@ export default function Landing() {
           <Reveal className="section-head">
             <span className="kicker">The board</span>
             <h2 className="title">Eight rooms, <em>one haus</em></h2>
-            <p>Each room is a different way to use money privately. Three run live on Privacy Rings today; the rest are coming soon.</p>
+            <p>Each room is a different way to use money privately. Four run live on Privacy Rings today; the rest are coming soon.</p>
           </Reveal>
           <Reveal delay={60}>
             <div className="board">

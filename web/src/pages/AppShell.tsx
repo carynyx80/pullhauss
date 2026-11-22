@@ -9,9 +9,10 @@ import { fmt, load, save, short, usd } from '../lib/util'
 import Vault from '../rooms/Vault'
 import Send from '../rooms/Send'
 import Links from '../rooms/Links'
+import Swap from '../rooms/Swap'
 
-const COMP: Record<string, () => JSX.Element> = { vault: Vault, send: Send, links: Links }
-const SOON_ROOMS = ['swap', 'forge', 'orders', 'stealth', 'proofs']
+const COMP: Record<string, () => JSX.Element> = { vault: Vault, send: Send, swap: Swap, links: Links }
+const SOON_ROOMS = ['forge', 'orders', 'stealth', 'proofs']
 
 const SIDE_KEY = 'pullhaus.sidebar.collapsed'
 
@@ -32,7 +33,7 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [drawer])
 
-  const LIVE_ROOMS = ['vault', 'send', 'links']
+  const LIVE_ROOMS = ['vault', 'send', 'swap', 'links']
   const sim = (id: string) => (!LIVE_ROOMS.includes(id) ? <span className="badge side-sim">soon</span> : null)
   const total = live.balances.reduce((s, b) => s + b.amount * (prices[b.asset] ?? 0), 0)
   const current = ROOMS.find((r) => loc.pathname.startsWith(`/app/${r.id}`))

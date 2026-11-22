@@ -173,7 +173,7 @@ export function Shape({ kind, size = 34 }: { kind: string; size?: number }) {
 export const ROOMS = [
   { id: 'vault', name: 'Vault', blurb: 'Deposit into Privacy Rings. Your balance becomes encrypted notes only you can read.' },
   { id: 'send', name: 'Send', blurb: 'Pay anyone with the asset and amount encrypted. Payroll pays up to 15 people in one transaction.' },
-  { id: 'swap', name: 'Swap', blurb: 'Trade inside the pool. Swaps route through Solana liquidity without revealing who traded.' },
+  { id: 'swap', name: 'Swap', blurb: 'Swap SOL and USDC from your private balance via Jupiter. The result lands back in your encrypted balance.' },
   { id: 'forge', name: 'Forge', blurb: 'Launch a coin on a fair bonding curve where buyers stay anonymous. No sniping wallets to copy.' },
   { id: 'links', name: 'Links', blurb: 'Private invoices, tip jars and payroll. Share a link or QR and get paid into your vault.', isNew: true },
   { id: 'orders', name: 'Orders', blurb: 'Hidden limit orders and DCA. Your price and size stay sealed until the keeper fills them.', isNew: true },

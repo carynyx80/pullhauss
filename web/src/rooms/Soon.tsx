@@ -3,11 +3,6 @@ import { RoomHead } from '../pages/AppShell'
 
 /** Rooms that aren't live on Privacy Rings yet. No simulated balances, no fake actions. */
 const SOON: Record<string, { title: string; lead: string; points: string[] }> = {
-  swap: {
-    title: 'Swap',
-    lead: 'Trade from your private balance. Swaps will route through Solana liquidity and land back in your encrypted balance.',
-    points: ['Swap SOL, USDC and SPL tokens without leaving pullhaus', 'Routed through Jupiter for the best price', 'The swap step itself is public on-chain; we will say exactly what is visible'],
-  },
   forge: {
     title: 'Forge',
     lead: "Launch a token on a fair bonding curve where buyers pay from private balances, so there are no wallets to snipe or copy.",

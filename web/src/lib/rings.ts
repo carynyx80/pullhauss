@@ -134,6 +134,32 @@ async function ensureSol(client: SprClient, owner: Address, what: string, spend:
 
 const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i])
 
+/* ---------------- Jupiter swap (public leg between withdraw and deposit) ---------------- */
+const JUP = 'https://lite-api.jup.ag/swap/v1'
+export const SWAP_SLIPPAGE_BPS = 50
+/** The SDK's native-SOL id is the System Program; Jupiter routes native SOL as wrapped SOL. */
+const WSOL = 'So11111111111111111111111111111111111111112'
+const jupMint = (m: string) => (m === SOL_MINT ? WSOL : m)
+export type SwapQuote = {
+  inAmount: string; outAmount: string; otherAmountThreshold: string; priceImpactPct: string
+  routePlan?: { swapInfo?: { label?: string } }[]
+  [k: string]: unknown
+}
+/** Quote `amount` (human units) of `from` into `to`. */
+export async function quoteSwap(from: string, to: string, amount: string): Promise<SwapQuote> {
+  const a = LIVE_ASSETS[from], b = LIVE_ASSETS[to]
+  if (!a || !b || from === to) throw new Error('Pick two different assets.')
+  const raw = parseAmount(amount, a.decimals)
+  if (raw <= 0n) throw new Error('Enter an amount above zero.')
+  const url = `${JUP}/quote?inputMint=${jupMint(a.mint)}&outputMint=${jupMint(b.mint)}&amount=${raw}&slippageBps=${SWAP_SLIPPAGE_BPS}`
+  const res = await fetch(url)
+  const q = await res.json()
+  if (!res.ok || q.error) throw new Error(`No swap route right now (${q.error ?? res.status}). Try a different amount.`)
+  return q as SwapQuote
+}
+export type SwapStep = 'withdraw' | 'swap' | 'deposit' | 'done'
+export type SwapResult = { withdrawSig: string; swapSig: string; depositSig: string; received: string; asset: string }
+
 export type LiveBalance = { asset: string; amount: number; utxos: number }
 export type LiveTx = { id: string; detail: string }
 
@@ -336,6 +362,79 @@ export class RingsSession {
     const sig = await this.send(tx, true)
     await this.sync()
     return sig
+  }
+
+  /** Wallet signs a ready-made (v0) transaction, e.g. from Jupiter; we submit and confirm. */
+  private async sendRaw(bytes: Uint8Array): Promise<string> {
+    const sign = this.wallet.features['solana:signTransaction'] as {
+      signTransaction(...i: { account: WalletAccount; transaction: Uint8Array; chain?: string }[]): Promise<readonly { signedTransaction: Uint8Array }[]>
+    }
+    const [{ signedTransaction }] = await sign.signTransaction({ account: this.account, transaction: bytes, chain: CHAIN })
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(signedTransaction)))
+    const sig = await this.client.solanaRpc.sendTransaction(b64 as never, { encoding: 'base64', skipPreflight: false }).send()
+    await this.client.confirmTransaction(sig)
+    return sig
+  }
+
+  /** Public balance of `sym` in the connected wallet, in base units. */
+  private async publicRaw(sym: string): Promise<bigint> {
+    const a = this.asset(sym)
+    if (a.mint === SOL_MINT) return (await this.client.solanaRpc.getBalance(this.owner).send()).value
+    const [ata] = await findAssociatedTokenPda({ owner: this.owner, mint: a.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS })
+    try {
+      const r = await this.client.solanaRpc.getTokenAccountBalance(ata).send()
+      return BigInt(r.value.amount)
+    } catch {
+      return 0n // no token account yet
+    }
+  }
+
+  /**
+   * Private swap: withdraw `amount` of `from` → swap on Jupiter → deposit the result back
+   * into the private balance (0.25% app fee on the output). The withdraw, swap and deposit
+   * are public on-chain; the balance before and after stays private. If a later step
+   * fails, the funds are in the user's own wallet and the error says so.
+   */
+  async swap(from: string, to: string, amount: string, onStep: (s: SwapStep) => void): Promise<SwapResult> {
+    this.asset(from); const b = this.asset(to)
+    if (from === to) throw new Error('Pick two different assets.')
+    // Fees for three transactions, plus wrapping/token-account headroom.
+    await ensureSol(this.client, this.owner, 'this swap (three transactions)', TX_FEE_MARGIN * 3n + 3_000_000n)
+    await quoteSwap(from, to, amount) // fail fast if there's no route
+
+    onStep('withdraw')
+    const withdrawSig = await this.withdraw(from, amount, this.owner)
+
+    let swapSig = ''
+    try {
+      onStep('swap')
+      const before = await this.publicRaw(to)
+      const quote = await quoteSwap(from, to, amount) // fresh quote right before signing
+      const res = await fetch(`${JUP}/swap`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ quoteResponse: quote, userPublicKey: this.owner, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: 'auto' }),
+      })
+      const j = await res.json()
+      if (!res.ok || !j.swapTransaction) throw new Error(`Jupiter couldn't build the swap (${j.error ?? res.status}).`)
+      swapSig = await this.sendRaw(Uint8Array.from(atob(j.swapTransaction), (c) => c.charCodeAt(0)))
+      const after = await this.publicRaw(to)
+      let got = after - before
+      // SOL output: the swap's own network fee came out of the same balance; keep room for the deposit's fee.
+      if (b.mint === SOL_MINT) got -= TX_FEE_MARGIN
+      if (got <= 0n) throw new Error('The swap went through but nothing arrived to deposit.')
+
+      onStep('deposit')
+      const received = formatAmount(got, b.decimals)
+      const depositSig = await this.deposit(to, received, undefined, true)
+      onStep('done')
+      return { withdrawSig, swapSig, depositSig, received, asset: to }
+    } catch (e) {
+      const where = swapSig
+        ? `The swap went through, but depositing the ${to} back failed. Your ${to} is in your wallet. Use Vault → Shield to make it private again.`
+        : `Your ${amount} ${from} was withdrawn to your wallet, but the swap didn't go through. It's safe in your wallet. Use Vault → Shield to make it private again.`
+      throw Object.assign(new Error(where), { cause: e, recovery: true })
+    }
   }
 
   /** Public fee transfer to the treasury (SOL, or SPL to the treasury's token account). */
