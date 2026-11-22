@@ -28,6 +28,7 @@ import {
   syncWallet,
   Wallet as ShieldedWallet,
 } from '@heliuslabs/spr'
+import { SignedTeePolicy } from '@heliuslabs/spr/client'
 import { ed25519DerivationMessage } from '@heliuslabs/spr/keypair'
 import { isWalletRegistered } from '@heliuslabs/spr/wallet'
 import { getTransferSolInstruction } from '@solana-program/system'
@@ -106,7 +107,12 @@ export class RingsSession {
     const owner = address(account.address)
 
     onStatus('Starting Privacy Rings client')
-    const client = await createSprClient({ solanaRpcUrl: `https://${CLUSTER}.helius-rpc.com/?api-key=${API_KEY}` })
+    // proverTee: the SDK only sends proof inputs to a prover enclave that attests to
+    // Helius' signed policy for this network (AWS Nitro). Required for every remote prover.
+    const client = await createSprClient({
+      solanaRpcUrl: `https://${CLUSTER}.helius-rpc.com/?api-key=${API_KEY}`,
+      proverTee: SignedTeePolicy.forNetwork(CLUSTER),
+    })
 
     onStatus('Sign once to unlock your private balance')
     const message = ed25519DerivationMessage(account.publicKey as Uint8Array as never)
