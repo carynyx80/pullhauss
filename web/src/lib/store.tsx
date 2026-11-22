@@ -37,7 +37,20 @@ type Persisted = {
   proofs: ComplianceProof[]; viewKeys: ViewKey[]
 }
 
-const BASE_PRICES: Record<Asset, number> = { SOL: 182.4, USDC: 1, JUP: 0.94, BONK: 0.000021 }
+/** Fallback only for demo-mode maths until the first live quote arrives. Never shown as a price. */
+const BASE_PRICES: Record<Asset, number> = { SOL: 70, USDC: 1, JUP: 0.22, BONK: 0.000002 }
+
+/** Mainnet mints for live USD prices from Jupiter's public price API. */
+const PRICE_MINTS: Record<Asset, string> = {
+  SOL: 'So11111111111111111111111111111111111111112',
+  USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  JUP: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+  BONK: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+}
+const PRICE_URL = `https://lite-api.jup.ag/price/v3?ids=${Object.values(PRICE_MINTS).join(',')}`
+const PRICE_EVERY_MS = 30_000
+
+export type Quote = { usd: number; change24h: number | null }
 export const CORE_ASSETS = ['SOL', 'USDC', 'JUP', 'BONK']
 export const ASSOCIATION_SETS = [
   { id: 'haus-clean', label: 'Haus Clean Set', desc: 'Deposits not linked to any sanctioned or hacked address. Curated by the pullhaus association committee.', size: 18342 },
@@ -99,6 +112,9 @@ export function launchPrice(l: Pick<Launch, 'sold' | 'supply'>) {
 
 type Store = Persisted & {
   prices: Record<Asset, number>
+  /** Real market quotes from Jupiter; empty until the first successful fetch. */
+  quotes: Record<Asset, Quote>
+  quotesAt: number | null
   blocks: Block[]
   shielded: Record<Asset, number>
   assets: Asset[]
@@ -129,6 +145,8 @@ const Ctx = createContext<Store | null>(null)
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [s, setS] = useState<Persisted>(() => ({ ...fresh(), ...load<Partial<Persisted>>(KEY, {}) }))
   const [prices, setPrices] = useState<Record<Asset, number>>(BASE_PRICES)
+  const [quotes, setQuotes] = useState<Record<Asset, Quote>>({})
+  const [quotesAt, setQuotesAt] = useState<number | null>(null)
   const [blocks, setBlocks] = useState<Block[]>(seedChain)
   // keyed by detail so React StrictMode's double-invoked updaters don't log a tx twice
   const pending = useRef<Map<string, ChainTx>>(new Map())
@@ -157,16 +175,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t)
   }, [])
 
-  // Price drift + order keeper.
+  // Live USD prices from Jupiter every 30s. On failure keep the last good quote; never invent one.
   useEffect(() => {
-    const t = setInterval(() => {
-      setPrices((p) => {
-        const n = { ...p }
-        for (const k of ['SOL', 'JUP', 'BONK']) n[k] = p[k] * (1 + (Math.random() - 0.5) * 0.008)
-        return n
-      })
-    }, 3000)
-    return () => clearInterval(t)
+    let alive = true
+    const load = async () => {
+      try {
+        const res = await fetch(PRICE_URL, { headers: { accept: 'application/json' } })
+        if (!res.ok) return
+        const data = (await res.json()) as Record<string, { usdPrice?: number; priceChange24h?: number }>
+        const q: Record<Asset, Quote> = {}
+        for (const [sym, mint] of Object.entries(PRICE_MINTS)) {
+          const d = data[mint]
+          if (d && typeof d.usdPrice === 'number' && isFinite(d.usdPrice) && d.usdPrice > 0) {
+            q[sym] = { usd: d.usdPrice, change24h: typeof d.priceChange24h === 'number' ? d.priceChange24h : null }
+          }
+        }
+        if (!alive || !Object.keys(q).length) return
+        setQuotes((old) => ({ ...old, ...q }))
+        setPrices((p) => ({ ...p, ...Object.fromEntries(Object.entries(q).map(([k, v]) => [k, v.usd])) }))
+        setQuotesAt(Date.now())
+      } catch {
+        /* offline or blocked: keep the last good quote */
+      }
+    }
+    load()
+    const t = setInterval(load, PRICE_EVERY_MS)
+    return () => { alive = false; clearInterval(t) }
   }, [])
 
   const allPrices = useMemo(() => {
@@ -221,7 +255,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   const store: Store = {
-    ...s, prices: allPrices, blocks, shielded, assets,
+    ...s, prices: allPrices, quotes, quotesAt, blocks, shielded, assets,
     connect: () => mut((p) => ({ ...p, connected: true, address: p.address || b58(44) })),
     disconnect: () => mut((p) => ({ ...p, connected: false })),
     reset: () => mut(() => fresh()),

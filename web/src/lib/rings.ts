@@ -97,6 +97,14 @@ export class RingsSession {
     return getWallets().get().filter((w) => 'solana:signMessage' in w.features && 'solana:signTransaction' in w.features)
   }
 
+  /** Wallet extensions often register after the page loads; call `cb` whenever one does. */
+  static onWalletsChange(cb: () => void): () => void {
+    const api = getWallets()
+    const offA = api.on('register', cb)
+    const offB = api.on('unregister', cb)
+    return () => { offA(); offB() }
+  }
+
   static async connect(wallet: StdWallet, onStatus: (s: string) => void = () => {}): Promise<RingsSession> {
     if (!API_KEY) throw new Error('Set VITE_HELIUS_API_KEY in web/.env.local to use Privacy Rings.')
     onStatus('Connecting wallet')

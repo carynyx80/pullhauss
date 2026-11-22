@@ -14,6 +14,7 @@ type Live = {
   balances: LiveBalance[]
   lastSig: string
   wallets(): Promise<StdWallet[]>
+  onWalletsChange(cb: () => void): Promise<() => void>
   connect(w: StdWallet): Promise<void>
   disconnect(): Promise<void>
   refresh(): Promise<void>
@@ -40,17 +41,20 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const live: Live = {
     session, status, error, balances, lastSig,
     wallets: async () => (await rings()).RingsSession.wallets(),
+    onWalletsChange: async (cb) => (await rings()).RingsSession.onWalletsChange(cb),
     connect: async (w) => {
       setError('')
+      let lastStep = 'Connecting wallet'
       try {
         const { RingsSession } = await rings()
-        const s = await RingsSession.connect(w, setStatus)
+        const s = await RingsSession.connect(w, (st) => { lastStep = st; setStatus(st) })
         setSession(s)
         setBalances(s.balances())
         setStatus('')
       } catch (e) {
         setStatus('')
-        setError(friendly(e))
+        setError(`Failed at "${lastStep}": ${friendly(e)}`)
+        console.error('[pullhaus] wallet connect failed at', lastStep, e)
         throw e
       }
     },
@@ -80,11 +84,14 @@ export function LiveProvider({ children }: { children: ReactNode }) {
 }
 
 function friendly(e: unknown) {
-  const m = (e as Error)?.message ?? String(e)
-  if (/reject|denied|cancel/i.test(m)) return 'You rejected the request in your wallet.'
+  const err = e as { message?: string; code?: string | number; details?: unknown; cause?: { message?: string } }
+  const raw = [err?.message ?? String(e), err?.code && String(err.code) !== err?.message ? `code ${err.code}` : '', err?.cause?.message ? `cause: ${err.cause.message}` : '']
+    .filter(Boolean).join(' · ')
+  const m = raw
+  if (/user rejected|rejected the request|user denied|cancelled by user|4001/i.test(m)) return `You declined the request in your wallet. (${raw})`
   if (/insufficient|not enough|WALLET_INSUFFICIENT/i.test(m)) return 'Not enough balance for this (including fees).'
   if (/WALLET_TOO_MANY_INPUTS/.test(m)) return 'Your balance is split across too many notes. Merge them first, then retry.'
-  return m
+  return `Wallet error: ${raw}`
 }
 
 export function useLive() {

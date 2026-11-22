@@ -66,21 +66,26 @@ export function Nav() {
 
 type Tick = { sym: string; label: string; fig: string; dir?: 'up' | 'dn' }
 
-/** Ink ticker strip: live figures, infinite marquee, pauses on hover. */
+/** Ink ticker strip: real market prices (Jupiter), infinite marquee, pauses on hover. */
 export function Ticker() {
-  const { prices, blocks } = useStore()
-  const tip = blocks[blocks.length - 1]?.height ?? 0
-  const px = (n: number | undefined) => (n === undefined ? '-' : n < 0.01 ? n.toExponential(2) : n.toFixed(2))
+  const { quotes } = useStore()
+  const px = (n: number) => (n < 0.01 ? `$${n.toPrecision(3)}` : `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+  const market = (sym: string, label: string): Tick => {
+    const q = quotes[sym]
+    if (!q) return { sym, label, fig: '-' }
+    const ch = q.change24h
+    const chTxt = ch === null ? '' : ` ${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%`
+    return { sym, label, fig: px(q.usd) + chTxt, dir: ch === null ? undefined : ch >= 0 ? 'up' : 'dn' }
+  }
   const items: Tick[] = [
-    { sym: 'SOL', label: 'Solana', fig: `$${px(prices.SOL)}`, dir: (prices.SOL ?? 0) >= 182.4 ? 'up' : 'dn' },
-    { sym: 'USDC', label: 'USD Coin', fig: `$${px(prices.USDC)}` },
-    { sym: 'JUP', label: 'Jupiter', fig: `$${px(prices.JUP)}`, dir: (prices.JUP ?? 0) >= 0.94 ? 'up' : 'dn' },
+    market('SOL', 'Solana'),
+    market('USDC', 'USD Coin'),
+    market('JUP', 'Jupiter'),
+    market('BONK', 'Bonk'),
     { sym: 'HAUS', label: 'Official token', fig: HAUS_LIVE ? 'live on pump.fun' : 'coming soon' },
     { sym: 'RING', label: 'Privacy Rings', fig: 'beta · mainnet' },
     { sym: 'FEE', label: 'pullhaus fee', fig: '0.25%' },
     { sym: 'TXS', label: 'Recipients per transfer', fig: '15' },
-    { sym: 'NET', label: 'Cluster', fig: CLUSTER },
-    { sym: 'SLOT', label: 'Demo feed', fig: tip.toLocaleString() },
   ]
   const row = items.map((t, i) => (
     <span className="tick" key={i}><b>{t.sym}</b>{t.label}<span className={t.dir ?? ''}>{t.fig}</span></span>
@@ -236,13 +241,52 @@ export function useProver() {
   return { run, busy, view, reset: () => { setStage(-1); setError(''); setDone('') } }
 }
 
+const isMobile = () => typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+/** Reopens pullhaus inside a mobile wallet's in-app browser, where the wallet is injected. */
+function walletBrowseLinks() {
+  const url = encodeURIComponent(location.href)
+  const ref = encodeURIComponent(location.origin)
+  return [
+    { name: 'Phantom', href: `https://phantom.app/ul/browse/${url}?ref=${ref}` },
+    { name: 'Solflare', href: `https://solflare.com/ul/v1/browse/${url}?ref=${ref}` },
+    { name: 'Backpack', href: `https://backpack.app/ul/v1/browse/${url}?ref=${ref}` },
+  ]
+}
+
 export function WalletPicker({ onDone }: { onDone?: () => void }) {
   const live = useLive()
   const [wallets, setWallets] = useState<StdWallet[] | null>(null)
-  useEffect(() => { live.wallets().then(setWallets).catch(() => setWallets([])) }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  if (!LIVE_AVAILABLE) return <div className="err">Live mode needs a Helius API key. Add VITE_HELIUS_API_KEY to web/.env.local and restart.</div>
-  if (wallets === null) return <div className="dim">Looking for wallets…</div>
-  if (!wallets.length) return <div className="dim">No Solana wallet found. Install Phantom, Solflare or Backpack, then reload.</div>
+  useEffect(() => {
+    let off: (() => void) | undefined
+    let alive = true
+    const refresh = () => live.wallets().then((w) => alive && setWallets(w)).catch(() => alive && setWallets([]))
+    refresh()
+    live.onWalletsChange(refresh).then((u) => { off = u })
+    // Some extensions register late without an event; look again shortly after load.
+    const t = setTimeout(refresh, 1500)
+    return () => { alive = false; off?.(); clearTimeout(t) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!LIVE_AVAILABLE) return <div className="err">Live mode needs a Helius API key. Add VITE_HELIUS_API_KEY and redeploy.</div>
+  if (wallets === null) return <div className="hint">Looking for wallets…</div>
+  if (!wallets.length) {
+    return (
+      <div className="stack">
+        {isMobile() ? (
+          <>
+            <p className="hint" style={{ margin: 0 }}>Phone browsers can't see wallet apps. Open pullhaus inside your wallet's browser instead:</p>
+            {walletBrowseLinks().map((w) => <a key={w.name} className="btn block" href={w.href}>Open in {w.name}</a>)}
+          </>
+        ) : (
+          <p className="hint" style={{ margin: 0 }}>
+            No Solana wallet found in this browser. Install <a className="accent" href="https://phantom.com" target="_blank" rel="noreferrer">Phantom</a>,{' '}
+            <a className="accent" href="https://solflare.com" target="_blank" rel="noreferrer">Solflare</a> or{' '}
+            <a className="accent" href="https://backpack.app" target="_blank" rel="noreferrer">Backpack</a>, unlock it, then reload this page.
+          </p>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="stack">
       {wallets.map((w) => (
@@ -251,7 +295,7 @@ export function WalletPicker({ onDone }: { onDone?: () => void }) {
         </button>
       ))}
       {live.status && <div className="ok">{live.status}…</div>}
-      {live.error && <div className="err">{live.error}</div>}
+      {live.error && <div className="err" style={{ wordBreak: 'break-word' }}>{live.error}</div>}
     </div>
   )
 }
