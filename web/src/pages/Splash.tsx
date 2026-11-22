@@ -10,15 +10,13 @@ export default function Splash() {
     <main className="splash">
       <header className="splash-top">
         <span className="logo"><Wordmark size={24} /></span>
-        <a className="powered" href="https://www.helius.dev/docs/privacy" target="_blank" rel="noreferrer">
-          Powered by <b>Helius Privacy Rings</b>
-        </a>
+        <Link className="powered" to="/how-it-works">How it works →</Link>
       </header>
       <Ticker />
 
       <section className="splash-center">
         <Reveal>
-          <span className="eyebrow"><span className="pulse" />Live on Solana · <b>private by default</b></span>
+          <a className="eyebrow" href="https://www.helius.dev/docs/privacy" target="_blank" rel="noreferrer"><span className="pulse" />Powered by <b>Helius Privacy Rings</b></a>
         </Reveal>
         <Reveal delay={60}>
           <h1 className="headline">
