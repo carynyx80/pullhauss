@@ -1,0 +1,20 @@
+{
+  "name": "pullhaus-keeper",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solana/web3.js": "1.95.8",
+    "tsx": "4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "typescript": "5.6.3"
+  }
+}

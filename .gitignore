@@ -1,0 +1,12 @@
+node_modules/
+target/
+dist/
+.anchor/
+.claude/
+.env
+.env.local
+.env.*.local
+*-keypair.json
+keeper-keypair.json
+.DS_Store
+*.tsbuildinfo
