@@ -105,7 +105,8 @@ function friendly(e: unknown) {
   }
   const all = codes.join(' ') + ' ' + deepest
   if (/user rejected|rejected the request|user denied|cancelled by user|4001/i.test(all)) return 'You declined the request in your wallet.'
-  if (/already registered on Privacy Rings with different keys|Couldn't reach Helius/.test(all)) return deepest
+  if (/already registered on Privacy Rings with different keys|Couldn't reach Helius|Your wallet needs at least/.test(all)) return deepest
+  if (/7050031|INSUFFICIENT_FUNDS_FOR_RENT|insufficient funds for rent/i.test(all)) return 'Your wallet doesn\'t have enough SOL for this. Solana requires every wallet to keep a small minimum (about 0.00065 SOL) on top of what it spends. Add a little SOL and try again.'
   if (/CLIENT_RPC|429|Too Many Requests|fetch failed|NetworkError/i.test(all)) return "Couldn't reach Helius just now. Please try again in a moment."
   if (/WALLET_INSUFFICIENT_BALANCE/.test(all)) return "Not enough private balance in that asset. Check the asset you picked, or deposit more in Vault."
   if (/insufficient (funds|lamports)|insufficient funds for rent/i.test(all)) return 'Not enough SOL in your wallet to cover this and the network fee.'

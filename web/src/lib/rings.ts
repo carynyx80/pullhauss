@@ -109,6 +109,29 @@ async function verifyEd25519(pub: Uint8Array, msg: Uint8Array, sig: Uint8Array) 
   }
 }
 
+const REGISTRY_RECORD_BYTES = 100n
+/** Network fee plus priority-fee headroom for one transaction, in lamports. */
+const TX_FEE_MARGIN = 50_000n
+const lamportsToSol = (l: bigint) => (Number(l) / 1e9).toLocaleString('en-US', { maximumFractionDigits: 6 })
+async function rentFor(client: SprClient, bytes: bigint) {
+  return client.solanaRpc.getMinimumBalanceForRentExemption(bytes).send()
+}
+/**
+ * Solana rejects a transaction that leaves the fee payer below its own rent-exempt
+ * minimum. Check up front and say exactly how much SOL is needed, instead of
+ * surfacing a raw INSUFFICIENT_FUNDS_FOR_RENT error after the wallet prompt.
+ */
+async function ensureSol(client: SprClient, owner: Address, what: string, spend: bigint) {
+  const [{ value: bal }, keep] = await Promise.all([client.solanaRpc.getBalance(owner).send(), rentFor(client, 0n)])
+  const need = spend + keep
+  if (bal < need) {
+    throw new Error(
+      `Your wallet needs at least ${lamportsToSol(need)} SOL for ${what} (it has ${lamportsToSol(bal)} SOL). ` +
+      `Add about ${lamportsToSol(need - bal + 1_000_000n)} SOL to this wallet and try again.`,
+    )
+  }
+}
+
 const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i])
 
 export type LiveBalance = { asset: string; amount: number; utxos: number }
@@ -186,6 +209,8 @@ export class RingsSession {
       throw Object.assign(new Error("Couldn't reach Helius to check your registration. Please try again in a moment."), { cause: e })
     })
     if (!existing) {
+      // Registration creates a 100-byte record (one-time rent) and the wallet must stay rent-exempt.
+      await ensureSol(client, owner, 'registration', (await rentFor(client, REGISTRY_RECORD_BYTES)) + TX_FEE_MARGIN)
       onStatus('Approve one-time registration of your shielded address')
       const tx = await buildRegistrationTransaction({ client, owner, address: keys.address() }).catch((e) => {
         const codes = JSON.stringify(e, Object.getOwnPropertyNames(e ?? {})) + String(e?.cause?.code ?? '')
@@ -254,6 +279,7 @@ export class RingsSession {
     const a = this.asset(sym)
     const value = parseAmount(amount, a.decimals)
     const fee = chargeFee && this.owner !== TREASURY_ADDR ? feeFor(value) : 0n
+    await ensureSol(this.client, this.owner, 'this deposit', (a.mint === SOL_MINT ? value + fee : 0n) + TX_FEE_MARGIN)
     const tx = await buildDepositTransaction({
       client: this.client, feePayer: this.owner, asset: a.mint, amount: value,
       recipient: recipient ? address(recipient) : this.keys.address(),
